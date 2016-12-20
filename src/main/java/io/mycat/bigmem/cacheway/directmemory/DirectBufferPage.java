@@ -175,7 +175,6 @@ public class DirectBufferPage {
         return false;
     }
 
-    @SuppressWarnings("restriction")
     public static void main(String[] args) {
         ByteBuffer buffer = ByteBuffer.allocateDirect(2048);
 

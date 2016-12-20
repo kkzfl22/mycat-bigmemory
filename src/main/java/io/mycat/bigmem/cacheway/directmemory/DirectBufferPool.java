@@ -81,7 +81,6 @@ public class DirectBufferPool implements CacheOperatorInf {
     * @param buffer
     * @创建日期 2016年12月19日
     */
-    @SuppressWarnings("restriction")
     public boolean recycleAll(ByteBuffer buffer) {
 
         // 计算chunk归还的数量
@@ -116,7 +115,6 @@ public class DirectBufferPool implements CacheOperatorInf {
      * @param buffer
      * @创建日期 2016年12月19日
      */
-    @SuppressWarnings("restriction")
     public boolean recycleNotUse(ByteBuffer buffer) {
 
         if (buffer.limit() < buffer.capacity()) {
