@@ -1,6 +1,8 @@
-package io.mycat.bigmem.strategy;
+package io.mycat.bigmem.strategy.impl;
 
 import java.util.Map;
+
+import io.mycat.bigmem.strategy.CacheStrategyInf;
 
 /**
  * 使用文件影射的缓存策略

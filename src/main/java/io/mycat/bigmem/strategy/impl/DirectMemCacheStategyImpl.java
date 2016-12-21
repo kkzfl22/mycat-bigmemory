@@ -1,10 +1,11 @@
-package io.mycat.bigmem.strategy;
+package io.mycat.bigmem.strategy.impl;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.mycat.bigmem.cacheway.CacheOperatorInf;
 import io.mycat.bigmem.cacheway.directmemory.DirectBufferPool;
+import io.mycat.bigmem.strategy.CacheStrategyInf;
 
 /**
  * 使用内存进行缓存的策略

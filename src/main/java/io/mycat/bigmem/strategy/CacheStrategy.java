@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import io.mycat.bigmem.console.LocatePolicy;
+import io.mycat.bigmem.strategy.impl.DirectMemCacheStategyImpl;
+import io.mycat.bigmem.strategy.impl.FileMapCacheStategyImpl;
 
 /**
  * 缓存的策略信息
