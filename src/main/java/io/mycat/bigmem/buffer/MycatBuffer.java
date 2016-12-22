@@ -62,4 +62,36 @@ public interface MycatBuffer {
     */
     public void recycleUnuse();
 
+    /**
+     * 获取容量信息
+    * 方法描述
+    * @return
+    * @创建日期 2016年12月22日
+    */
+    public long capacity();
+
+    /**
+     * 当前写入的位置
+    * 方法描述
+    * @return
+    * @创建日期 2016年12月22日
+    */
+    public long position();
+
+    /**
+     * 设置容量信息
+     * 方法描述
+     * @return
+     * @创建日期 2016年12月22日
+     */
+    public void capacity(long capacity);
+
+    /**
+     * 重新定位位置
+     * 方法描述
+     * @return
+     * @创建日期 2016年12月22日
+     */
+    public void position(long position);
+
 }
