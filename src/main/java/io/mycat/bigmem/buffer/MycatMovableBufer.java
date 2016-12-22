@@ -37,19 +37,11 @@ public interface MycatMovableBufer extends MycatBuffer {
     public void commitOp();
 
     /**
-     * 向目标的buffer拷贝数据
+     * 以当前的内存生成新的引用对象
     * 方法描述
     * @param buffer
     * @创建日期 2016年12月21日
     */
-    public void copyTo(MycatMovableBufer buffer);
-
-    /**
-     * 得到内存地址
-    * 方法描述
-    * @return
-    * @创建日期 2016年12月22日
-    */
-    public long getAddress();
+    public MycatMovableBufer slice();
 
 }

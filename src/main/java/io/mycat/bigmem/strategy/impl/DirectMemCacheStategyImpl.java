@@ -3,8 +3,6 @@ package io.mycat.bigmem.strategy.impl;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import io.mycat.bigmem.cacheway.CacheOperatorInf;
-import io.mycat.bigmem.cacheway.directmemory.DirectBufferPool;
 import io.mycat.bigmem.strategy.CacheStrategyInf;
 
 /**
@@ -19,12 +17,6 @@ import io.mycat.bigmem.strategy.CacheStrategyInf;
 * 版权所有：Copyright 2016 zjhz, Inc. All Rights Reserved.
 */
 public class DirectMemCacheStategyImpl implements CacheStrategyInf {
-
-    /**
-     * 进行直接内存的管理操作
-    * @字段说明 directoryMemory
-    */
-    private CacheOperatorInf directoryMemory = new DirectBufferPool(128, 10240, (short) 128);
 
     /**
      * 进行缓存key与对应的内存的块的信息

@@ -1,8 +1,9 @@
-package io.mycat.bigmem.buffer.impl.directmemory;
+package io.mycat.bigmem.buffer.impl;
 
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 
+import io.mycat.bigmem.buffer.DirectMemAddressInf;
 import io.mycat.bigmem.buffer.MycatMovableBufer;
 import io.mycat.bigmem.util.UnsafeHelper;
 import sun.misc.Unsafe;
@@ -18,7 +19,7 @@ import sun.misc.Unsafe;
 * 文件描述：TODO
 * 版权所有：Copyright 2016 zjhz, Inc. All Rights Reserved.
 */
-public class DirectMycatBufferImpl implements MycatMovableBufer {
+public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddressInf {
 
     /**
      * 用来进行自己内存管理的对象
@@ -39,6 +40,12 @@ public class DirectMycatBufferImpl implements MycatMovableBufer {
     private long limit;
 
     /**
+     * 容量信息
+    * @字段说明 capacity
+    */
+    private long capacity;
+
+    /**
      * 地址信息
     * @字段说明 address
     */
@@ -49,6 +56,12 @@ public class DirectMycatBufferImpl implements MycatMovableBufer {
     * @字段说明 local
     */
     private ThreadLocal<Long> local = new ThreadLocal<>();
+
+    /**
+     * 当前附着的对象
+    * @字段说明 att
+    */
+    private Object att;
 
     /**
      * 构造方法，进行内存容量的分配操作
@@ -64,12 +77,24 @@ public class DirectMycatBufferImpl implements MycatMovableBufer {
         unsafe.setMemory(address, moneySize, (byte) 0);
         // 设置limit以及空量信息
         this.limit = moneySize;
+        // 设置容量
+        this.capacity = moneySize;
         // 设置线程的默认值
         local.set(-1l);
     }
 
+    public DirectMycatBufferImpl(DirectMycatBufferImpl dirbuffer, long position, long limit, long address,
+            long threadId) {
+        this.position = position;
+        this.limit = limit;
+        this.address = address;
+        this.local.set(threadId);
+        this.att = dirbuffer;
+        this.unsafe = dirbuffer.unsafe;
+    }
+
     private long getIndex(int offset) {
-        if (limit - position < offset)
+        if (limit < offset)
             throw new BufferOverflowException();
         return address + offset;
     }
@@ -84,7 +109,9 @@ public class DirectMycatBufferImpl implements MycatMovableBufer {
     private int addPosition(int offset) {
         if (limit - position < offset)
             throw new BufferOverflowException();
-        this.position = this.position + offset;
+        // 游标增加
+        this.position = offset;
+        // 相应的limit的
         return offset;
     }
 
@@ -137,22 +164,6 @@ public class DirectMycatBufferImpl implements MycatMovableBufer {
         long buffAddress = ((sun.nio.ch.DirectBuffer) buffer).address();
         // 进行内存的拷贝
         unsafe.copyMemory(null, address, null, buffAddress, this.limit);
-    }
-
-    @Override
-    public void copyTo(MycatMovableBufer buffer) {
-
-        if (!this.checkThreadId()) {
-            return;
-        }
-
-        if (buffer.capacity() < this.position) {
-            throw new BufferOverflowException();
-        }
-        // 获取当前堆外的内存的地址
-        long buffAddress = buffer.getAddress();
-        // 进行内存的拷贝,仅拷贝已经写入的数据
-        unsafe.copyMemory(null, address, null, buffAddress, this.position);
     }
 
     @Override
@@ -231,7 +242,7 @@ public class DirectMycatBufferImpl implements MycatMovableBufer {
     }
 
     @Override
-    public long capacity() {
+    public long limit() {
         return this.limit;
     }
 
@@ -241,8 +252,8 @@ public class DirectMycatBufferImpl implements MycatMovableBufer {
     }
 
     @Override
-    public void capacity(long capacity) {
-        this.limit = capacity;
+    public void limit(long limit) {
+        this.limit = limit;
     }
 
     @Override
@@ -251,9 +262,30 @@ public class DirectMycatBufferImpl implements MycatMovableBufer {
     }
 
     @Override
-    public long getAddress() {
-        // TODO Auto-generated method stub
+    public MycatMovableBufer slice() {
+        if (!this.checkThreadId()) {
+            return null;
+        }
+        long currPosition = this.position;
+        long cap = this.limit - currPosition;
+        long address = this.address + currPosition;
+        // 生新新的引用对象
+        return new DirectMycatBufferImpl(this, 0, cap, address, Thread.currentThread().getId());
+    }
+
+    @Override
+    public long capacity() {
+        return this.capacity;
+    }
+
+    @Override
+    public long address() {
         return this.address;
+    }
+
+    @Override
+    public Object getAttach() {
+        return att;
     }
 
 }

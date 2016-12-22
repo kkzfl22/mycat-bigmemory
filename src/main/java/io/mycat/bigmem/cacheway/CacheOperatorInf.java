@@ -1,6 +1,6 @@
 package io.mycat.bigmem.cacheway;
 
-import java.nio.ByteBuffer;
+import io.mycat.bigmem.buffer.MycatBuffer;
 
 /**
  * 用来进行缓存操作的接口
@@ -22,7 +22,7 @@ public interface CacheOperatorInf {
     * @return
     * @创建日期 2016年12月20日
     */
-    public ByteBuffer allocationMemory(int size);
+    public MycatBuffer allocationMemory(int size);
 
     /**
      * 进行缓存空间的全部释放
@@ -31,7 +31,7 @@ public interface CacheOperatorInf {
     * @return
     * @创建日期 2016年12月20日
     */
-    public boolean recycleAll(ByteBuffer bufer);
+    public boolean recycleAll(MycatBuffer bufer);
 
     /**
      * 进行缓存空间的部分释放，即释放buffer的limit与capacity之间的空间释放
@@ -40,6 +40,6 @@ public interface CacheOperatorInf {
      * @return
      * @创建日期 2016年12月20日
      */
-    public boolean recycleNotUse(ByteBuffer bufer);
+    public boolean recycleNotUse(MycatBuffer bufer);
 
 }

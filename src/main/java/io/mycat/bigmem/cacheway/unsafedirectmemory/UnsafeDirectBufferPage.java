@@ -1,10 +1,11 @@
-package io.mycat.bigmem.buffer.impl.directmemory;
+package io.mycat.bigmem.cacheway.unsafedirectmemory;
 
 import java.util.BitSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.mycat.bigmem.buffer.MycatBuffer;
 import io.mycat.bigmem.buffer.MycatMovableBufer;
+import io.mycat.bigmem.buffer.impl.DirectMycatBufferImpl;
 
 public class UnsafeDirectBufferPage {
 
@@ -12,7 +13,7 @@ public class UnsafeDirectBufferPage {
      * 操作的buffer信息
     * @字段说明 buffer
     */
-    private MycatBuffer buffer;
+    private MycatMovableBufer buffer;
 
     /**
     * 每个chunk的大小
@@ -49,12 +50,12 @@ public class UnsafeDirectBufferPage {
     * @param memorySize
     * @param chunkSize
     */
-    public UnsafeDirectBufferPage(MycatBuffer buffer, int chunkSize) {
+    public UnsafeDirectBufferPage(MycatMovableBufer buffer, int chunkSize) {
         this.buffer = buffer;
         // 设置chunk的大小
         this.chunkSize = chunkSize;
         // 设置chunk的数量
-        this.chunkCount = (int) buffer.capacity() / this.chunkSize;
+        this.chunkCount = (int) buffer.limit() / this.chunkSize;
         // 设置当前内存标识块的大小
         this.memUseSet = new BitSet(this.chunkCount);
         // 默认可使用的chunk数量为总的chunk数
@@ -123,12 +124,12 @@ public class UnsafeDirectBufferPage {
                 // 将这一批数据标识为已经使用
                 memUseSet.set(startIndex, startIndex + needChunkSize);
 
-                MycatMovableBufer bufferResult = new DirectMycatBufferImpl(needChunkSize * chunkSize);
-                //
+                // 标识开始与结束号
                 buffer.position(startIndex * chunkSize);
-                buffer.capacity((startIndex + needChunkSize) * chunkSize);
+                buffer.limit((startIndex + needChunkSize) * chunkSize);
 
-                // 进行数据的拷贝
+                // 进行数据进行匹配分段操作
+                MycatMovableBufer bufferResult = buffer.slice();
 
                 // 当前可使用的，为之前的结果前去当前的需要的，
                 canUseChunkNum = canUseChunkNum - needChunkSize;
@@ -183,6 +184,12 @@ public class UnsafeDirectBufferPage {
 
         UnsafeDirectBufferPage page = new UnsafeDirectBufferPage(buffer, 256);
 
+        buffer.beginOp();
+
+        MycatBuffer buffer1 = page.alloactionMemory(4);
+        MycatBuffer buffer2 = page.alloactionMemory(4);
+
+        buffer.commitOp();
         // // 获得内存buffer
         // sun.nio.ch.DirectBuffer thisNavBuf = (sun.nio.ch.DirectBuffer)
         // bufferItem2;
