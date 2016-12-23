@@ -23,14 +23,14 @@ package io.mycat.bigmem.buffer;
 public interface MycatSwapBufer extends MycatBuffer {
 
     /**
-     * 与beginOp操作类型，标识开始
+     * 与beginOp操作类似，标识开始
     * 方法描述
     * @创建日期 2016年12月21日
     */
     public void swapln();
 
     /**
-     * 与commitOp操作类型，标识结束
+     * 与commitOp操作类似，标识结束
     * 方法描述
     * @创建日期 2016年12月21日
     */

@@ -18,11 +18,12 @@ public interface CacheOperatorInf {
     /**
      * 进行缓存空间的分配
     * 方法描述
-    * @param size
+    * @param size 需要的内存大小
+    * @param timeout 过期的时间
     * @return
     * @创建日期 2016年12月20日
     */
-    public MycatBuffer allocationMemory(int size);
+    public MycatBuffer allocationMemory(int size, long timeOut);
 
     /**
      * 进行缓存空间的全部释放

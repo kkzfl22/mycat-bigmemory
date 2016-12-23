@@ -4,6 +4,7 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 
 import io.mycat.bigmem.buffer.DirectMemAddressInf;
+import io.mycat.bigmem.buffer.MycatBuffer;
 import io.mycat.bigmem.buffer.MycatMovableBufer;
 import io.mycat.bigmem.util.UnsafeHelper;
 import sun.misc.Unsafe;
@@ -28,22 +29,28 @@ public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddres
     private Unsafe unsafe;
 
     /**
-     * 当前的编号
+     * 当前写入的指针位置
     * @字段说明 position
     */
-    private long position;
+    private int putPosition;
+
+    /**
+     * 当前读取指针的位置
+    * @字段说明 getPosition
+    */
+    private int getPosition;
 
     /**
      * 当前的的容量
     * @字段说明 limit
     */
-    private long limit;
+    private int limit;
 
     /**
      * 容量信息
     * @字段说明 capacity
     */
-    private long capacity;
+    private int capacity;
 
     /**
      * 地址信息
@@ -52,10 +59,10 @@ public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddres
     private long address;
 
     /**
-     * 用来进行本地变量的存储
-    * @字段说明 local
+     * 是否进行内存整理标识,默认为true，即允许进行整理
+    * @字段说明 clearFlag
     */
-    private ThreadLocal<Long> local = new ThreadLocal<>();
+    private volatile boolean clearFlag = true;
 
     /**
      * 当前附着的对象
@@ -68,7 +75,7 @@ public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddres
     * 构造方法
     * @param moneySize
     */
-    public DirectMycatBufferImpl(long moneySize) {
+    public DirectMycatBufferImpl(int moneySize) {
         // // 获得首地址信息
         unsafe = UnsafeHelper.getUnsafe();
         // 进行内存分配
@@ -79,83 +86,38 @@ public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddres
         this.limit = moneySize;
         // 设置容量
         this.capacity = moneySize;
-        // 设置线程的默认值
-        local.set(-1l);
     }
 
-    public DirectMycatBufferImpl(DirectMycatBufferImpl dirbuffer, long position, long limit, long address,
+    public DirectMycatBufferImpl(DirectMycatBufferImpl dirbuffer, int position, int limit, long address,
             long threadId) {
-        this.position = position;
+        this.putPosition = position;
         this.limit = limit;
+        // 设置容量
+        this.capacity = limit;
         this.address = address;
-        this.local.set(threadId);
         this.att = dirbuffer;
         this.unsafe = dirbuffer.unsafe;
     }
 
-    private long getIndex(int offset) {
+    private long getIndex(long offset) {
         if (limit < offset)
             throw new BufferOverflowException();
         return address + offset;
     }
 
-    /**
-     * 进行postion位置的更新
-    * 方法描述
-    * @param offset
-    * @return
-    * @创建日期 2016年12月22日
-    */
-    private int addPosition(int offset) {
-        if (limit - position < offset)
-            throw new BufferOverflowException();
-        // 游标增加
-        this.position = offset;
-        // 相应的limit的
-        return offset;
-    }
-
     @Override
     public void setByte(int offset, byte value) {
-        if (!this.checkThreadId()) {
-            return;
-        }
-
-        unsafe.putByte(getIndex(addPosition(offset)), value);
-    }
-
-    /**
-     * 进行线程的检查 
-    * 方法描述
-    * @return
-    * @创建日期 2016年12月22日
-    */
-    private boolean checkThreadId() {
-
-        if (Thread.currentThread().getId() == local.get()) {
-            return true;
-        }
-
-        return false;
-
+        unsafe.putByte(getIndex(offset), value);
     }
 
     @Override
     public byte getByte(int offset) {
-
-        if (!this.checkThreadId()) {
-            return 0;
-        }
         // 仅允许同一线程操作
         return unsafe.getByte(getIndex(offset));
     }
 
     @Override
     public void copyTo(ByteBuffer buffer) {
-
-        if (!this.checkThreadId()) {
-            return;
-        }
 
         if (buffer.capacity() < this.limit) {
             throw new BufferOverflowException();
@@ -168,25 +130,22 @@ public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddres
 
     @Override
     public void recycleUnuse() {
-        if (!this.checkThreadId()) {
-            return;
-        }
         // unsafe.freeMemory(getIndex(this.position));
         // 修改当前的标识
-        this.limit = this.position;
+        this.limit = this.putPosition;
     }
 
     @Override
     public void beginOp() {
-        // 写入当前的线程id的标识
-        local.set(Thread.currentThread().getId());
+
+        // 标识当前正在进行内存操作，不能整理内存
+        clearFlag = false;
     }
 
     @Override
     public void commitOp() {
-        // 进行数据提交
-        local.set(-1l);
-
+        // 内存整理完毕可以进行内存整理
+        clearFlag = true;
     }
 
     public static void main(String[] args) {
@@ -194,15 +153,11 @@ public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddres
 
         mybuffer.beginOp();
 
-        mybuffer.setByte(0, (byte) 0);
-        mybuffer.setByte(1, (byte) 1);
-        mybuffer.setByte(2, (byte) 2);
-        mybuffer.setByte(3, (byte) 3);
-        mybuffer.setByte(4, (byte) 4);
-        mybuffer.setByte(4, (byte) 25);
+        mybuffer.putByte((byte) 10);
+        mybuffer.putByte((byte) 12);
 
-        for (int i = 0; i < 5; i++) {
-            System.out.println(mybuffer.getByte(i));
+        for (int i = 0; i < 2; i++) {
+            System.out.println(mybuffer.get());
         }
 
         ByteBuffer bufferValue = ByteBuffer.allocateDirect(1024);
@@ -242,39 +197,36 @@ public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddres
     }
 
     @Override
-    public long limit() {
+    public int limit() {
         return this.limit;
     }
 
     @Override
-    public long position() {
-        return this.position;
+    public int putPosition() {
+        return this.putPosition;
     }
 
     @Override
-    public void limit(long limit) {
+    public void limit(int limit) {
         this.limit = limit;
     }
 
     @Override
-    public void position(long position) {
-        this.position = position;
+    public void putPosition(int position) {
+        this.putPosition = position;
     }
 
     @Override
     public MycatMovableBufer slice() {
-        if (!this.checkThreadId()) {
-            return null;
-        }
-        long currPosition = this.position;
-        long cap = this.limit - currPosition;
+        int currPosition = this.getPosition;
+        int cap = this.limit - currPosition;
         long address = this.address + currPosition;
         // 生新新的引用对象
         return new DirectMycatBufferImpl(this, 0, cap, address, Thread.currentThread().getId());
     }
 
     @Override
-    public long capacity() {
+    public int capacity() {
         return this.capacity;
     }
 
@@ -286,6 +238,60 @@ public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddres
     @Override
     public Object getAttach() {
         return att;
+    }
+
+    /**
+     * 将添加的指针加1
+    * 方法描述
+    * @return
+    * @创建日期 2016年12月23日
+    */
+    private long addPutPos() {
+        if (this.putPosition > this.limit)
+            throw new BufferOverflowException();
+        return this.putPosition++;
+    }
+
+    /**
+     * 将获取的指针加1
+    * 方法描述
+    * @return
+    * @创建日期 2016年12月23日
+    */
+    private long addGetPos() {
+        if (this.getPosition > this.limit)
+            throw new BufferOverflowException();
+        return this.getPosition++;
+    }
+
+    @Override
+    public MycatBuffer putByte(byte b) {
+
+        unsafe.putByte(getIndex(this.addPutPos()), b);
+
+        return this;
+    }
+
+    @Override
+    public byte get() {
+
+        return unsafe.getByte(getIndex(this.addGetPos()));
+
+    }
+
+    @Override
+    public int getPosition() {
+        return this.getPosition;
+    }
+
+    @Override
+    public void getPosition(int getPosition) {
+        this.getPosition = getPosition;
+    }
+
+    @Override
+    public boolean getClearFlag() {
+        return this.clearFlag;
     }
 
 }

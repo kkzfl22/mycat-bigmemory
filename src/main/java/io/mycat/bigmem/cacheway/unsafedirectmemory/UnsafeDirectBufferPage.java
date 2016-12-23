@@ -5,7 +5,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.mycat.bigmem.buffer.MycatBuffer;
 import io.mycat.bigmem.buffer.MycatMovableBufer;
-import io.mycat.bigmem.buffer.impl.DirectMycatBufferImpl;
 
 public class UnsafeDirectBufferPage {
 
@@ -13,7 +12,7 @@ public class UnsafeDirectBufferPage {
      * 操作的buffer信息
     * @字段说明 buffer
     */
-    private MycatMovableBufer buffer;
+    private MycatBuffer buffer;
 
     /**
     * 每个chunk的大小
@@ -32,6 +31,12 @@ public class UnsafeDirectBufferPage {
     * @字段说明 memUseSet
     */
     private final BitSet memUseSet;
+
+    /**
+     * 内存过期时间的的map
+    * @字段说明 timeOutMap
+    */
+    private final long[] timeOutArrays;
 
     /**
     * 是否锁定标识
@@ -60,6 +65,13 @@ public class UnsafeDirectBufferPage {
         this.memUseSet = new BitSet(this.chunkCount);
         // 默认可使用的chunk数量为总的chunk数
         this.canUseChunkNum = chunkCount;
+        // 初始将chunk块的过期时间初始化
+        this.timeOutArrays = new long[this.chunkCount];
+
+        // 设置默认的过期时间
+        for (int i = 0; i < this.chunkCount; i++) {
+            timeOutArrays[i] = 0l;
+        }
 
     }
 
@@ -82,10 +94,11 @@ public class UnsafeDirectBufferPage {
     * 获得chunk的buffer信息
     * 方法描述
     * @param needChunkSize
+    * @param timeout 系统过期时间
     * @return
     * @创建日期 2016年12月19日
     */
-    public MycatMovableBufer alloactionMemory(int needChunkSize) {
+    public MycatBuffer alloactionMemory(int needChunkSize, long timeOut) {
         // 如果当前的可分配的内在块小于需要内存块，则返回
         if (canUseChunkNum < needChunkSize) {
             return null;
@@ -106,6 +119,10 @@ public class UnsafeDirectBufferPage {
                     if (startIndex == -1) {
                         startIndex = i;
                         endIndex = 1;
+                        // 只需要1时，进不需再进行遍历
+                        if (needChunkSize == 1) {
+                            break;
+                        }
                     } else {
                         if (++endIndex == needChunkSize) {
                             break;
@@ -122,17 +139,26 @@ public class UnsafeDirectBufferPage {
             // 如果找到适合的内存块大小
             if (endIndex == needChunkSize) {
                 // 将这一批数据标识为已经使用
-                memUseSet.set(startIndex, startIndex + needChunkSize);
+                int needChunkEnd = startIndex + needChunkSize;
+                memUseSet.set(startIndex, needChunkEnd);
 
+                buffer.beginOp();
                 // 标识开始与结束号
-                buffer.position(startIndex * chunkSize);
-                buffer.limit((startIndex + needChunkSize) * chunkSize);
+                buffer.getPosition(startIndex * chunkSize);
+                buffer.limit(needChunkEnd * chunkSize);
 
                 // 进行数据进行匹配分段操作
-                MycatMovableBufer bufferResult = buffer.slice();
+                MycatBuffer bufferResult = buffer.slice();
 
                 // 当前可使用的，为之前的结果前去当前的需要的，
                 canUseChunkNum = canUseChunkNum - needChunkSize;
+
+                // 设置过期时间
+                for (int i = startIndex; i < needChunkEnd; i++) {
+                    timeOutArrays[i] = timeOut;
+                }
+
+                buffer.commitOp();
 
                 return bufferResult;
 
@@ -161,8 +187,14 @@ public class UnsafeDirectBufferPage {
             }
 
             try {
+                int endChunkNum = chunkStart + chunkNum;
                 // 将当前指定的内存块归还
-                memUseSet.clear(chunkStart, (chunkStart + chunkNum));
+                memUseSet.clear(chunkStart, endChunkNum);
+
+                // 将过期时间置0.
+                for (int i = chunkStart; i < endChunkNum; i++) {
+                    timeOutArrays[i] = 0l;
+                }
 
                 // 归还了内存，则需要将可使用的内存加上归还的内存
                 this.canUseChunkNum = canUseChunkNum + chunkNum;
@@ -178,35 +210,34 @@ public class UnsafeDirectBufferPage {
         return false;
     }
 
-    @SuppressWarnings("restriction")
-    public static void main(String[] args) {
-        MycatMovableBufer buffer = new DirectMycatBufferImpl(2048);
-
-        UnsafeDirectBufferPage page = new UnsafeDirectBufferPage(buffer, 256);
-
-        buffer.beginOp();
-
-        MycatBuffer buffer1 = page.alloactionMemory(4);
-        MycatBuffer buffer2 = page.alloactionMemory(4);
-
-        buffer.commitOp();
-        // // 获得内存buffer
-        // sun.nio.ch.DirectBuffer thisNavBuf = (sun.nio.ch.DirectBuffer)
-        // bufferItem2;
-        // // attachment对象在buf.slice();的时候将attachment对象设置为总的buff对象
-        // sun.nio.ch.DirectBuffer parentBuf = (sun.nio.ch.DirectBuffer)
-        // thisNavBuf.attachment();
-        // //
-        // 已经使用的地址减去父类最开始的地址，即为所有已经使用的地址，除以chunkSize得到chunk当前开始的地址,得到整块内存开始的地址
-        // int startChunk = (int) ((page - parentBuf.address()) / 256);
-        //
-        // // 归还当前buffer2的内存
-        // page.recycleBuffer(parentBuf, startChunk, 2);
-        //
-        // System.out.println(bufferItem);
-        // System.out.println(bufferItem2);
-        // System.out.println(bufferItem3);
-
-    }
+    // public static void main(String[] args) {
+    // MycatMovableBufer buffer = new DirectMycatBufferImpl(2048);
+    //
+    // UnsafeDirectBufferPage page = new UnsafeDirectBufferPage(buffer, 256);
+    //
+    // buffer.beginOp();
+    //
+    // MycatBuffer buffer1 = page.alloactionMemory(4);
+    // MycatBuffer buffer2 = page.alloactionMemory(4);
+    //
+    // buffer.commitOp();
+    // // // 获得内存buffer
+    // // sun.nio.ch.DirectBuffer thisNavBuf = (sun.nio.ch.DirectBuffer)
+    // // bufferItem2;
+    // // // attachment对象在buf.slice();的时候将attachment对象设置为总的buff对象
+    // // sun.nio.ch.DirectBuffer parentBuf = (sun.nio.ch.DirectBuffer)
+    // // thisNavBuf.attachment();
+    // // //
+    // // 已经使用的地址减去父类最开始的地址，即为所有已经使用的地址，除以chunkSize得到chunk当前开始的地址,得到整块内存开始的地址
+    // // int startChunk = (int) ((page - parentBuf.address()) / 256);
+    // //
+    // // // 归还当前buffer2的内存
+    // // page.recycleBuffer(parentBuf, startChunk, 2);
+    // //
+    // // System.out.println(bufferItem);
+    // // System.out.println(bufferItem2);
+    // // System.out.println(bufferItem3);
+    //
+    // }
 
 }

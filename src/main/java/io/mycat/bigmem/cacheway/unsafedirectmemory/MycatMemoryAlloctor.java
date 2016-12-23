@@ -3,6 +3,7 @@ package io.mycat.bigmem.cacheway.unsafedirectmemory;
 import io.mycat.bigmem.buffer.DirectMemAddressInf;
 import io.mycat.bigmem.buffer.MycatBuffer;
 import io.mycat.bigmem.buffer.MycatMovableBufer;
+import io.mycat.bigmem.buffer.impl.DirectMycatBufferImpl;
 import io.mycat.bigmem.cacheway.CacheOperatorInf;
 
 /**
@@ -16,7 +17,7 @@ import io.mycat.bigmem.cacheway.CacheOperatorInf;
  * 文件描述：TODO
  * 版权所有：Copyright 2016 zjhz, Inc. All Rights Reserved.
  */
-public class DirectBufferPool implements CacheOperatorInf {
+public class MycatMemoryAlloctor implements CacheOperatorInf {
 
     /**
     * 内存池对象信息
@@ -37,15 +38,13 @@ public class DirectBufferPool implements CacheOperatorInf {
     * @param memorySize
     * @param poolSize
     */
-    public DirectBufferPool(int chunkSize, int memorySize, short poolSize) {
+    public MycatMemoryAlloctor(int chunkSize, int memorySize, short poolSize) {
         CHUNK_SIZE = chunkSize;
         // 进行每个内存页的初始化
         POOL = new UnsafeDirectBufferPage[poolSize];
         // 进行每个chunk的页面的分配内存操作
         for (int i = 0; i < poolSize; i++) {
-            // POOL[i] = new
-            // UnsafeDirectBufferPage(ByteBuffer.allocateDirect(memorySize),
-            // CHUNK_SIZE);
+            POOL[i] = new UnsafeDirectBufferPage(new DirectMycatBufferImpl(memorySize), CHUNK_SIZE);
         }
     }
 
@@ -56,7 +55,7 @@ public class DirectBufferPool implements CacheOperatorInf {
     * @return
     * @创建日期 2016年12月19日
     */
-    public MycatBuffer allocationMemory(int size) {
+    public MycatBuffer allocationMemory(int size, long timeout) {
         // 计算需要的chunk大小
         int needChunk = size % CHUNK_SIZE == 0 ? size / CHUNK_SIZE : size / CHUNK_SIZE + 1;
         // 取得内存页信息
@@ -71,7 +70,7 @@ public class DirectBufferPool implements CacheOperatorInf {
         // 如果能找合适的内存空间，则进行分配
         if (null != page) {
             // 针对当前的chunk进行内存的分配操作
-            MycatBuffer buffer = page.alloactionMemory(needChunk);
+            MycatBuffer buffer = page.alloactionMemory(needChunk, timeout);
             return buffer;
         }
         return null;
@@ -84,7 +83,6 @@ public class DirectBufferPool implements CacheOperatorInf {
     * @param buffer
     * @创建日期 2016年12月19日
     */
-    @SuppressWarnings("restriction")
     public boolean recycleAll(MycatBuffer buffer) {
 
         // 计算chunk归还的数量
@@ -119,7 +117,6 @@ public class DirectBufferPool implements CacheOperatorInf {
     * @param buffer
     * @创建日期 2016年12月19日
     */
-    @SuppressWarnings("restriction")
     public boolean recycleNotUse(MycatBuffer buffer) {
 
         if (buffer.limit() < buffer.capacity()) {
@@ -128,9 +125,9 @@ public class DirectBufferPool implements CacheOperatorInf {
             int chunkNum = (int) (buffer.capacity() - buffer.limit()) / CHUNK_SIZE;
 
             // 获得内存buffer
-            sun.nio.ch.DirectBuffer thisNavBuf = (sun.nio.ch.DirectBuffer) buffer;
+            DirectMemAddressInf thisNavBuf = (DirectMemAddressInf) buffer;
             // attachment对象在buf.slice();的时候将attachment对象设置为总的buff对象
-            sun.nio.ch.DirectBuffer parentBuf = (sun.nio.ch.DirectBuffer) thisNavBuf.attachment();
+            DirectMemAddressInf parentBuf = (DirectMemAddressInf) thisNavBuf.getAttach();
 
             int chunkAdd = buffer.limit() % CHUNK_SIZE == 0 ? (int) buffer.limit() / CHUNK_SIZE
                     : (int) buffer.limit() / CHUNK_SIZE + 1;

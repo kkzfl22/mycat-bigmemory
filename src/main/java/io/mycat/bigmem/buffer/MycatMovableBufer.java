@@ -37,11 +37,11 @@ public interface MycatMovableBufer extends MycatBuffer {
     public void commitOp();
 
     /**
-     * 以当前的内存生成新的引用对象
+     * 获取当前内存是否可以进行内存整理
     * 方法描述
-    * @param buffer
-    * @创建日期 2016年12月21日
+    * @return
+    * @创建日期 2016年12月23日
     */
-    public MycatMovableBufer slice();
+    public boolean getClearFlag();
 
 }
