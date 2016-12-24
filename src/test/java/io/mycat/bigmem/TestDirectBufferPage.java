@@ -1,5 +1,6 @@
 package io.mycat.bigmem;
 
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.mycat.bigmem.buffer.MycatBuffer;
@@ -9,7 +10,7 @@ import io.mycat.bigmem.cacheway.unsafedirectmemory.UnsafeDirectBufferPage;
 
 public class TestDirectBufferPage {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
 
         MycatMovableBufer buffer = new DirectMycatBufferImpl(2048);
 
@@ -44,8 +45,14 @@ public class TestDirectBufferPage {
                 System.out.println();
 
                 if (null != buffer2) {
-                    for (int i = 0; i < 120; i++) {
-                        buffer2.putByte((byte) i);
+
+                    try {
+                        for (int i = 0; i < 120; i++) {
+                            buffer2.putByte((byte) i);
+                        }
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
                     }
 
                     for (int i = 0; i < 120; i++) {

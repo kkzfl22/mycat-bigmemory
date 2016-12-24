@@ -88,8 +88,7 @@ public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddres
         this.capacity = moneySize;
     }
 
-    public DirectMycatBufferImpl(DirectMycatBufferImpl dirbuffer, int position, int limit, long address,
-            long threadId) {
+    public DirectMycatBufferImpl(DirectMycatBufferImpl dirbuffer, int position, int limit, long address) {
         this.putPosition = position;
         this.limit = limit;
         // 设置容量
@@ -222,7 +221,7 @@ public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddres
         int cap = this.limit - currPosition;
         long address = this.address + currPosition;
         // 生新新的引用对象
-        return new DirectMycatBufferImpl(this, 0, cap, address, Thread.currentThread().getId());
+        return new DirectMycatBufferImpl(this, 0, cap, address);
     }
 
     @Override

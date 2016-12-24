@@ -1,7 +1,7 @@
 package io.mycat.bigmem.buffer;
 
 /**
- * 直接内存操作接口信息
+ * 直接内存操作接口相关的地址信息
 * 源文件名：DirectMemoryAddressInf.java
 * 文件版本：1.0.0
 * 创建作者：Think

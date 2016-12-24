@@ -32,7 +32,7 @@ public interface MycatMovableBufer extends MycatBuffer {
     public void beginOp();
 
     /**
-     * 
+     * 当前操作完成，事要进行内存整理
      */
     public void commitOp();
 

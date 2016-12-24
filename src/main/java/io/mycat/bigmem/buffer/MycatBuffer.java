@@ -1,5 +1,6 @@
 package io.mycat.bigmem.buffer;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -16,27 +17,13 @@ import java.nio.ByteBuffer;
 public interface MycatBuffer {
 
     /**
-     * 标识起始buffer
-    * 方法描述
-    * @创建日期 2016年12月21日
-    */
-    public void beginOp();
-
-    /**
-     * 提交buffer
-    * 方法描述
-    * @创建日期 2016年12月21日
-    */
-    public void commitOp();
-
-    /**
      * 按偏移量设置buffer的值，进行绝对定位数据进行写入，不改变position的值
     * 方法描述
     * @param offset
     * @param value
     * @创建日期 2016年12月21日
     */
-    public void setByte(int offset, byte value);
+    public void setByte(int offset, byte value) throws IOException;
 
     /**
      * 放入byte信息
@@ -45,7 +32,7 @@ public interface MycatBuffer {
     * @return
     * @创建日期 2016年12月23日
     */
-    public MycatBuffer putByte(byte b);
+    public MycatBuffer putByte(byte b) throws IOException;
 
     /**
      * 获取指定位置的byte值

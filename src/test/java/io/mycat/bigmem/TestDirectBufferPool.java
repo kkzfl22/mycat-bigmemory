@@ -1,11 +1,13 @@
 package io.mycat.bigmem;
 
+import java.io.IOException;
+
 import io.mycat.bigmem.buffer.MycatBuffer;
 import io.mycat.bigmem.cacheway.unsafedirectmemory.MycatMemoryAlloctor;
 
 public class TestDirectBufferPool {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
 
         MycatMemoryAlloctor poolBuffer = new MycatMemoryAlloctor(128, 2048, (short) 1);
 
@@ -32,9 +34,10 @@ public class TestDirectBufferPool {
      * 进行内存的填充
     * 方法描述
     * @param buffer
+     * @throws IOException 
     * @创建日期 2016年12月23日
     */
-    public static void fillValue(MycatBuffer buffer) {
+    public static void fillValue(MycatBuffer buffer) throws IOException {
         for (int i = 0; i < buffer.capacity(); i++) {
             buffer.putByte((byte) i);
         }

@@ -12,7 +12,7 @@ public class UnsafeDirectBufferPage {
      * 操作的buffer信息
     * @字段说明 buffer
     */
-    private MycatBuffer buffer;
+    private MycatMovableBufer buffer;
 
     /**
     * 每个chunk的大小
