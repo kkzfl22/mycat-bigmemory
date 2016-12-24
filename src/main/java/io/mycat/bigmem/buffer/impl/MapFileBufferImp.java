@@ -17,6 +17,17 @@ import io.mycat.bigmem.util.UnsafeHelper;
 import sun.misc.Unsafe;
 import sun.nio.ch.FileChannelImpl;
 
+/**
+ * 文件映射的buffer的实现
+* 源文件名：MapFileBufferImp.java
+* 文件版本：1.0.0
+* 创建作者：Think
+* 创建日期：2016年12月25日
+* 修改作者：Think
+* 修改日期：2016年12月25日
+* 文件描述：TODO
+* 版权所有：Copyright 2016 zjhz, Inc. All Rights Reserved.
+*/
 @SuppressWarnings("restriction")
 public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf {
 
@@ -32,11 +43,11 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf {
     */
     public static final Method mmap;
 
-    /**
-     * 解除映射的方法
-    * @字段说明 unmmap
-    */
-    public static final Method unmmap;
+    // /**
+    // * 解除映射的方法
+    // * @字段说明 unmmap
+    // */
+    // public static final Method unmmap;
 
     /**
      * byte的内存的固定的偏移
@@ -99,8 +110,10 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf {
             unsafe = (Unsafe) singleoneInstanceField.get(null);
             mmap = getMethod(FileChannelImpl.class, "map0", int.class, long.class, long.class);
             mmap.setAccessible(true);
-            unmmap = getMethod(FileChannelImpl.class, "unmap0", long.class, long.class);
-            unmmap.setAccessible(true);
+
+            // unmmap = getMethod(FileChannelImpl.class, "unmap0", long.class,
+            // long.class);
+            // unmmap.setAccessible(true);
             BYTE_ARRAY_OFFSET = unsafe.arrayBaseOffset(byte[].class);
         } catch (Exception e) {
             throw new RuntimeException(e);
