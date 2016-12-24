@@ -20,6 +20,7 @@ import sun.misc.Unsafe;
 * 文件描述：TODO
 * 版权所有：Copyright 2016 zjhz, Inc. All Rights Reserved.
 */
+@SuppressWarnings("restriction")
 public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddressInf {
 
     /**
