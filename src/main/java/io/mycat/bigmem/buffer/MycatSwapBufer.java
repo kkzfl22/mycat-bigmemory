@@ -1,5 +1,7 @@
 package io.mycat.bigmem.buffer;
 
+import java.io.IOException;
+
 /**
  * 允许交换到磁盘的buffer
  * 
@@ -23,14 +25,14 @@ package io.mycat.bigmem.buffer;
 public interface MycatSwapBufer extends MycatBuffer {
 
     /**
-     * 与beginOp操作类似，标识开始
+     * 与beginOp操作类似，将前内存数据交换到磁盘上,标识开始
     * 方法描述
     * @创建日期 2016年12月21日
     */
-    public void swapln();
+    public void swapln() throws IOException;
 
     /**
-     * 与commitOp操作类似，标识结束
+     * 与commitOp操作类似,当前交换到磁盘完成，标识结束
     * 方法描述
     * @创建日期 2016年12月21日
     */
@@ -42,7 +44,7 @@ public interface MycatSwapBufer extends MycatBuffer {
     * @param notify
     * @创建日期 2016年12月22日
     */
-    public void swapIn(MyCatCallbackInf notify);
+    public void swapIn(MyCatCallbackInf notify) throws IOException;
 
     /**
      *  与commitOp操作类型，标识结束,完成调用回调通知函数

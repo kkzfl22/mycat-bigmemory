@@ -12,7 +12,10 @@ import java.nio.channels.FileChannel;
 import io.mycat.bigmem.buffer.DirectMemAddressInf;
 import io.mycat.bigmem.buffer.MyCatCallbackInf;
 import io.mycat.bigmem.buffer.MycatBuffer;
+import io.mycat.bigmem.buffer.MycatMovableBufer;
 import io.mycat.bigmem.buffer.MycatSwapBufer;
+import io.mycat.bigmem.threadpool.ThreadPool;
+import io.mycat.bigmem.util.IOutils;
 import io.mycat.bigmem.util.UnsafeHelper;
 import sun.misc.Unsafe;
 import sun.nio.ch.FileChannelImpl;
@@ -29,7 +32,7 @@ import sun.nio.ch.FileChannelImpl;
 * 版权所有：Copyright 2016 zjhz, Inc. All Rights Reserved.
 */
 @SuppressWarnings("restriction")
-public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf {
+public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, MycatMovableBufer {
 
     /**
      * 内存控制的对象信息 
@@ -56,10 +59,16 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf {
     public static final int BYTE_ARRAY_OFFSET;
 
     /**
-     * 内存映射地址信息
+     * 内存映射地址信息,在被交换后可以更改
     * @字段说明 addr
     */
-    private final long addr;
+    private long addr;
+
+    /**
+     * 文件名称
+    * @字段说明 fileName
+    */
+    private final String fileName;
 
     /**
      * 随机文件读写信息
@@ -123,7 +132,7 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf {
     public MapFileBufferImp(int size) throws IOException {
         String path = MapFileBufferImp.class.getClassLoader().getResource("mapfile").getPath();
 
-        String fileName = path + "/mapFile-" + System.nanoTime() + ".txt";
+        fileName = path + "/mapFile-" + System.nanoTime() + ".txt";
 
         // // 获得首地址信息
         unsafe = UnsafeHelper.getUnsafe();
@@ -153,6 +162,8 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf {
         this.capacity = limit;
         this.addr = address;
         this.att = dirbuffer;
+        // 设置文件名称
+        this.fileName = dirbuffer.fileName;
     }
 
     /**
@@ -338,23 +349,89 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf {
     }
 
     @Override
-    public void swapln() {
+    public void swapln() throws IOException {
+        // 重新加载文件
+        randomFile = new RandomAccessFile(fileName, "rw");
+
+        // 设置文件大小
+        randomFile.setLength(this.capacity);
+        channel = randomFile.getChannel();
+
+        // 重新获取内存的地址信息
+        try {
+            addr = (long) mmap.invoke(channel, 1, 0, this.capacity);
+        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+            throw new IOException(e);
+        }
+
+        // 设置容量相关的东西
+        this.limit = this.capacity;
 
     }
 
     @Override
     public void swapOut() {
+        // 关闭流将文件刷入磁盘中
+        IOutils.closeStream(channel);
+        IOutils.closeStream(randomFile);
 
+        // 将内存释放
+        unsafe.freeMemory(addr);
+        // 标识空间为0
+        this.limit = 0;
     }
 
     @Override
-    public void swapIn(MyCatCallbackInf notify) {
+    public void swapIn(MyCatCallbackInf notify) throws IOException {
+        // 将文件重新加载映射到内存中
+        this.swapln();
+        // 进行异步的通知
+        this.callBackDoIt(notify);
+
+    }
+
+    private void callBackDoIt(final MyCatCallbackInf back) {
+
+        // 进行异步的通知调用
+        Runnable callBack = new Runnable() {
+
+            @Override
+            public void run() {
+                try {
+                    back.callBack();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+
+        // 提交到线程池中执行
+        ThreadPool.Instance().submit(callBack);
 
     }
 
     @Override
     public void swapOut(MyCatCallbackInf notify) {
+        // 首先执行数据加载
+        this.swapOut();
+        // 进行通知操作
+        this.callBackDoIt(notify);
 
+    }
+
+    @Override
+    public void beginOp() {
+
+    }
+
+    @Override
+    public void commitOp() {
+
+    }
+
+    @Override
+    public boolean getClearFlag() {
+        return false;
     }
 
 }

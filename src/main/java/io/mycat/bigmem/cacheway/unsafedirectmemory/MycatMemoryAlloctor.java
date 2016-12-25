@@ -55,7 +55,7 @@ public class MycatMemoryAlloctor implements CacheOperatorInf {
     * @return
     * @创建日期 2016年12月19日
     */
-    public MycatBuffer allocationMemory(int size, long timeout) {
+    public MycatBuffer allocationMemory(int size, long timeOut) {
         // 计算需要的chunk大小
         int needChunk = size % CHUNK_SIZE == 0 ? size / CHUNK_SIZE : size / CHUNK_SIZE + 1;
         // 取得内存页信息
@@ -70,7 +70,7 @@ public class MycatMemoryAlloctor implements CacheOperatorInf {
         // 如果能找合适的内存空间，则进行分配
         if (null != page) {
             // 针对当前的chunk进行内存的分配操作
-            MycatBuffer buffer = page.alloactionMemory(needChunk, timeout);
+            MycatBuffer buffer = page.alloactionMemory(needChunk, timeOut);
             return buffer;
         }
         return null;

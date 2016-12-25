@@ -13,4 +13,14 @@ package io.mycat.bigmem.buffer;
 */
 public interface MyCatCallbackInf {
 
+    /**
+     * 进行异步的通知
+    * 方法描述
+    * @param param
+    * @return
+    * @throws Exception
+    * @创建日期 2016年12月26日
+    */
+    public void callBack() throws Exception;
+
 }
