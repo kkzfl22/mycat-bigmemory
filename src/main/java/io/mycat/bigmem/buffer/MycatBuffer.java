@@ -1,6 +1,5 @@
 package io.mycat.bigmem.buffer;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -23,7 +22,7 @@ public interface MycatBuffer {
     * @param value
     * @创建日期 2016年12月21日
     */
-    public void setByte(int offset, byte value) throws IOException;
+    public void setByte(int offset, byte value);
 
     /**
      * 放入byte信息
@@ -32,7 +31,7 @@ public interface MycatBuffer {
     * @return
     * @创建日期 2016年12月23日
     */
-    public MycatBuffer putByte(byte b) throws IOException;
+    public MycatBuffer putByte(byte b);
 
     /**
      * 获取指定位置的byte值

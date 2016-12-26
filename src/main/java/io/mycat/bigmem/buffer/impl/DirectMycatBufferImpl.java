@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import io.mycat.bigmem.buffer.DirectMemAddressInf;
 import io.mycat.bigmem.buffer.MycatBuffer;
 import io.mycat.bigmem.buffer.MycatMovableBufer;
+import io.mycat.bigmem.console.BufferException;
 import io.mycat.bigmem.util.UnsafeHelper;
 import sun.misc.Unsafe;
 
@@ -107,6 +108,10 @@ public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddres
 
     @Override
     public void setByte(int offset, byte value) {
+        if (clearFlag) {
+            throw new BufferException("clear flag is true ,please beginop function");
+        }
+
         unsafe.putByte(getIndex(offset), value);
     }
 
@@ -183,8 +188,13 @@ public class DirectMycatBufferImpl implements MycatMovableBufer, DirectMemAddres
             public void run() {
                 mybuffer.beginOp();
 
-                mybuffer.setByte(0, (byte) 8);
-                mybuffer.setByte(1, (byte) 9);
+                try {
+                    mybuffer.setByte(0, (byte) 8);
+                    mybuffer.setByte(1, (byte) 9);
+                } catch (BufferException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
 
                 for (int i = 0; i < 2; i++) {
                     System.out.println(mybuffer.getByte(i));

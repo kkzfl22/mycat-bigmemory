@@ -14,6 +14,7 @@ import io.mycat.bigmem.buffer.MyCatCallbackInf;
 import io.mycat.bigmem.buffer.MycatBuffer;
 import io.mycat.bigmem.buffer.MycatMovableBufer;
 import io.mycat.bigmem.buffer.MycatSwapBufer;
+import io.mycat.bigmem.console.BufferException;
 import io.mycat.bigmem.threadpool.ThreadPool;
 import io.mycat.bigmem.util.IOutils;
 import io.mycat.bigmem.util.UnsafeHelper;
@@ -46,11 +47,11 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
     */
     public static final Method mmap;
 
-    // /**
-    // * 解除映射的方法
-    // * @字段说明 unmmap
-    // */
-    // public static final Method unmmap;
+    /**
+    * 解除映射的方法
+    * @字段说明 unmmap
+    */
+    public static final Method unmmap;
 
     /**
      * byte的内存的固定的偏移
@@ -112,6 +113,12 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
     */
     private Object att;
 
+    /**
+     * 是否进行内存整理标识,默认为true，即允许进行整理
+    * @字段说明 clearFlag
+    */
+    private volatile boolean clearFlag = true;
+
     static {
         try {
             Field singleoneInstanceField = Unsafe.class.getDeclaredField("theUnsafe");
@@ -120,9 +127,8 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
             mmap = getMethod(FileChannelImpl.class, "map0", int.class, long.class, long.class);
             mmap.setAccessible(true);
 
-            // unmmap = getMethod(FileChannelImpl.class, "unmap0", long.class,
-            // long.class);
-            // unmmap.setAccessible(true);
+            unmmap = getMethod(FileChannelImpl.class, "unmap0", long.class, long.class);
+            unmmap.setAccessible(true);
             BYTE_ARRAY_OFFSET = unsafe.arrayBaseOffset(byte[].class);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -204,23 +210,36 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
     }
 
     @Override
-    public void setByte(int offset, byte value) throws IOException {
+    public void setByte(int offset, byte value) {
         // 获取文件的游标
-        int position = (int) channel.position();
-        // 进行内存数据写入
-        unsafe.putByte(addr + offset + position, value);
+        int position = 0;
+        try {
+            position = (int) channel.position();
+
+            // 进行内存数据写入
+            unsafe.putByte(addr + offset + position, value);
+        } catch (IOException e) {
+            throw new BufferException("MapFileBufferImp setByte Exception ", e);
+        }
+
     }
 
     @Override
-    public MycatBuffer putByte(byte b) throws IOException {
+    public MycatBuffer putByte(byte b) {
         // 获取文件的游标
-        int filePosition = (int) channel.position();
-        // 计算写入的游标
-        long currPostision = addPutPos();
-        // 进行内存数据写入
-        unsafe.putByte(addr + currPostision, b);
-        // 将新的文件游标写入到文件中,当前为写入单byte文件
-        channel.position(filePosition + 1);
+        int filePosition = 0;
+        try {
+            filePosition = (int) channel.position();
+
+            // 计算写入的游标
+            long currPostision = addPutPos();
+            // 进行内存数据写入
+            unsafe.putByte(addr + currPostision, b);
+            // 将新的文件游标写入到文件中,当前为写入单byte文件
+            channel.position(filePosition + 1);
+        } catch (IOException e) {
+            throw new BufferException("MapFileBufferImp put Exception ", e);
+        }
 
         return this;
     }
@@ -308,6 +327,10 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
         return m;
     }
 
+    private void unmap() throws Exception {
+        unmmap.invoke(null, addr, this.capacity);
+    }
+
     @Override
     public long address() {
         return this.addr;
@@ -316,36 +339,6 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
     @Override
     public Object getAttach() {
         return this.att;
-    }
-
-    public static void main(String[] args) throws IOException {
-        final MapFileBufferImp mybuffer = new MapFileBufferImp(1024);
-
-        mybuffer.putByte((byte) 10);
-        mybuffer.putByte((byte) 12);
-        mybuffer.putByte((byte) 120);
-        mybuffer.putByte((byte) 100);
-        mybuffer.putByte((byte) 90);
-
-        for (int i = 0; i < mybuffer.putPosition; i++) {
-            System.out.println(mybuffer.get());
-        }
-
-        System.out.println("当前写入的游标：" + mybuffer.putPosition);
-        System.out.println("当前读取的游标：" + mybuffer.getPosition);
-
-        ByteBuffer bufferValue = ByteBuffer.allocateDirect(1024);
-
-        mybuffer.copyTo(bufferValue);
-
-        System.out.println(bufferValue);
-
-        for (int i = 0; i < bufferValue.position(); i++) {
-            System.out.println(bufferValue.get(i));
-        }
-
-        // 进行内存的翻译
-        mybuffer.recycleUnuse();
     }
 
     @Override
@@ -376,7 +369,12 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
         IOutils.closeStream(randomFile);
 
         // 将内存释放
-        unsafe.freeMemory(addr);
+        try {
+            this.unmap();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         // 标识空间为0
         this.limit = 0;
     }
@@ -421,17 +419,17 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
 
     @Override
     public void beginOp() {
-
+        clearFlag = false;
     }
 
     @Override
     public void commitOp() {
-
+        clearFlag = true;
     }
 
     @Override
     public boolean getClearFlag() {
-        return false;
+        return clearFlag;
     }
 
 }
