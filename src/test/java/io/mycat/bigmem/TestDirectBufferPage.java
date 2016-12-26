@@ -11,7 +11,6 @@ import io.mycat.bigmem.console.LocatePolicy;
 public class TestDirectBufferPage {
 
     public static void main(String[] args) throws IOException {
-
         MycatBufferBase buffer = MycatBufferBase.getMyCatBuffer(LocatePolicy.Core, 2048);
 
         UnsafeDirectBufferPage page = new UnsafeDirectBufferPage(buffer, 256);
