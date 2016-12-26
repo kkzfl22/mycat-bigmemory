@@ -22,7 +22,7 @@ import java.io.IOException;
 * 文件描述：TODO
 * 版权所有：Copyright 2016 zjhz, Inc. All Rights Reserved.
 */
-public interface MycatSwapBufer extends MycatBuffer {
+public interface MycatSwapBufer {
 
     /**
      * 与beginOp操作类似，将前内存数据交换到磁盘上,标识开始

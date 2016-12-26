@@ -8,11 +8,12 @@ import java.lang.reflect.Method;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.Semaphore;
 
 import io.mycat.bigmem.buffer.DirectMemAddressInf;
 import io.mycat.bigmem.buffer.MyCatCallbackInf;
 import io.mycat.bigmem.buffer.MycatBuffer;
-import io.mycat.bigmem.buffer.MycatMovableBufer;
+import io.mycat.bigmem.buffer.MycatBufferBase;
 import io.mycat.bigmem.buffer.MycatSwapBufer;
 import io.mycat.bigmem.console.BufferException;
 import io.mycat.bigmem.threadpool.ThreadPool;
@@ -33,7 +34,7 @@ import sun.nio.ch.FileChannelImpl;
 * 版权所有：Copyright 2016 zjhz, Inc. All Rights Reserved.
 */
 @SuppressWarnings("restriction")
-public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, MycatMovableBufer {
+public class MapFileBufferImp extends MycatBufferBase implements MycatSwapBufer, DirectMemAddressInf {
 
     /**
      * 内存控制的对象信息 
@@ -53,17 +54,11 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
     */
     public static final Method unmmap;
 
-    /**
-     * byte的内存的固定的偏移
-    * @字段说明 BYTE_ARRAY_OFFSET
-    */
-    public static final int BYTE_ARRAY_OFFSET;
-
-    /**
-     * 内存映射地址信息,在被交换后可以更改
-    * @字段说明 addr
-    */
-    private long addr;
+    // /**
+    // * byte的内存的固定的偏移
+    // * @字段说明 BYTE_ARRAY_OFFSET
+    // */
+    // public static final int BYTE_ARRAY_OFFSET;
 
     /**
      * 文件名称
@@ -84,40 +79,16 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
     private FileChannel channel;
 
     /**
-     * 当前写入的指针位置
-    * @字段说明 position
-    */
-    private int putPosition;
-
-    /**
-     * 当前读取指针的位置
-    * @字段说明 getPosition
-    */
-    private int getPosition;
-
-    /**
-     * 当前的的容量
-    * @字段说明 limit
-    */
-    private int limit;
-
-    /**
-     * 容量信息
-    * @字段说明 capacity
-    */
-    private int capacity;
-
-    /**
-     * 当前附着的对象
-    * @字段说明 att
-    */
-    private Object att;
-
-    /**
      * 是否进行内存整理标识,默认为true，即允许进行整理
     * @字段说明 clearFlag
     */
     private volatile boolean clearFlag = true;
+
+    /**
+     * 用来控制队列的访问，同一时间，不能被多个线程同同时操作队列
+    * @字段说明 lock
+    */
+    private Semaphore accessReq = new Semaphore(1);
 
     static {
         try {
@@ -129,7 +100,7 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
 
             unmmap = getMethod(FileChannelImpl.class, "unmap0", long.class, long.class);
             unmmap.setAccessible(true);
-            BYTE_ARRAY_OFFSET = unsafe.arrayBaseOffset(byte[].class);
+            // BYTE_ARRAY_OFFSET = unsafe.arrayBaseOffset(byte[].class);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -151,7 +122,7 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
 
         // 获得内存映射的地地址
         try {
-            addr = (long) mmap.invoke(channel, 1, 0, size);
+            address = (long) mmap.invoke(channel, 1, 0, size);
         } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
             throw new IOException(e);
         }
@@ -166,10 +137,14 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
         this.limit = limit;
         // 设置容量
         this.capacity = limit;
-        this.addr = address;
+        this.address = address;
         this.att = dirbuffer;
         // 设置文件名称
         this.fileName = dirbuffer.fileName;
+        // 文件流信息
+        this.randomFile = dirbuffer.randomFile;
+        // 通道信息
+        this.channel = dirbuffer.channel;
     }
 
     /**
@@ -182,7 +157,7 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
     private long getIndex(long offset) {
         if (limit < offset)
             throw new BufferOverflowException();
-        return addr + offset;
+        return address + offset;
     }
 
     /**
@@ -211,13 +186,16 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
 
     @Override
     public void setByte(int offset, byte value) {
+        // 验证当前内存整理标识
+        checkClearFlag();
+
         // 获取文件的游标
         int position = 0;
         try {
             position = (int) channel.position();
 
             // 进行内存数据写入
-            unsafe.putByte(addr + offset + position, value);
+            unsafe.putByte(address + offset + position, value);
         } catch (IOException e) {
             throw new BufferException("MapFileBufferImp setByte Exception ", e);
         }
@@ -226,6 +204,10 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
 
     @Override
     public MycatBuffer putByte(byte b) {
+
+        // 验证当前内存整理标识
+        checkClearFlag();
+
         // 获取文件的游标
         int filePosition = 0;
         try {
@@ -234,7 +216,7 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
             // 计算写入的游标
             long currPostision = addPutPos();
             // 进行内存数据写入
-            unsafe.putByte(addr + currPostision, b);
+            unsafe.putByte(address + currPostision, b);
             // 将新的文件游标写入到文件中,当前为写入单byte文件
             channel.position(filePosition + 1);
         } catch (IOException e) {
@@ -246,27 +228,40 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
 
     @Override
     public byte getByte(int offset) {
+        // 验证当前内存整理标识
+        checkClearFlag();
+
         return unsafe.getByte(getIndex(offset));
     }
 
     @Override
     public byte get() {
+        // 验证当前内存整理标识
+        checkClearFlag();
+
         return unsafe.getByte(getIndex(addGetPos()));
     }
 
     @Override
     public void copyTo(ByteBuffer buffer) {
+        // 验证当前内存整理标识
+        checkClearFlag();
+
         if (buffer.capacity() < this.limit) {
             throw new BufferOverflowException();
         }
         // 获取当前堆外的内存的地址
         long buffAddress = ((sun.nio.ch.DirectBuffer) buffer).address();
         // 进行内存的拷贝
-        unsafe.copyMemory(null, addr, null, buffAddress, this.limit);
+        unsafe.copyMemory(null, address, null, buffAddress, this.limit);
     }
 
     @Override
     public void recycleUnuse() {
+
+        // 验证当前内存整理标识
+        checkClearFlag();
+
         this.limit(this.putPosition);
 
         try {
@@ -277,46 +272,13 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
     }
 
     @Override
-    public int limit() {
-        return this.limit;
-    }
-
-    @Override
-    public void limit(int limit) {
-        this.limit = limit;
-    }
-
-    @Override
-    public int putPosition() {
-        return this.putPosition;
-    }
-
-    @Override
-    public void putPosition(int putPosition) {
-        this.putPosition = putPosition;
-    }
-
-    @Override
-    public int getPosition() {
-        return this.getPosition;
-    }
-
-    @Override
-    public void getPosition(int getPosition) {
-        this.getPosition = getPosition;
-    }
-
-    @Override
-    public int capacity() {
-        return this.capacity;
-    }
-
-    @Override
-    public MycatBuffer slice() {
+    public MycatBufferBase slice() {
+        // 验证当前内存整理标识
+        checkClearFlag();
 
         int currPosition = this.getPosition;
         int cap = this.limit - currPosition;
-        long address = this.addr + currPosition;
+        long address = this.address + currPosition;
         // 生新新的引用对象
         return new MapFileBufferImp(this, 0, cap, address);
     }
@@ -328,21 +290,15 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
     }
 
     private void unmap() throws Exception {
-        unmmap.invoke(null, addr, this.capacity);
-    }
-
-    @Override
-    public long address() {
-        return this.addr;
-    }
-
-    @Override
-    public Object getAttach() {
-        return this.att;
+        unmmap.invoke(null, address, this.capacity);
     }
 
     @Override
     public void swapln() throws IOException {
+
+        // 验证当前内存整理标识
+        checkClearFlag();
+
         // 重新加载文件
         randomFile = new RandomAccessFile(fileName, "rw");
 
@@ -352,18 +308,25 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
 
         // 重新获取内存的地址信息
         try {
-            addr = (long) mmap.invoke(channel, 1, 0, this.capacity);
+            address = (long) mmap.invoke(channel, 1, 0, this.capacity);
         } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
             throw new IOException(e);
         }
 
         // 设置容量相关的东西
         this.limit = this.capacity;
+        // 加载后设置两个指针
+        this.putPosition = 0;
+        this.getPosition = 0;
 
     }
 
     @Override
     public void swapOut() {
+
+        // 验证当前内存整理标识
+        checkClearFlag();
+
         // 关闭流将文件刷入磁盘中
         IOutils.closeStream(channel);
         IOutils.closeStream(randomFile);
@@ -377,10 +340,17 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
 
         // 标识空间为0
         this.limit = 0;
+        // 设置两个指针
+        this.putPosition = 0;
+        this.getPosition = 0;
     }
 
     @Override
     public void swapIn(MyCatCallbackInf notify) throws IOException {
+
+        // 验证当前内存整理标识
+        checkClearFlag();
+
         // 将文件重新加载映射到内存中
         this.swapln();
         // 进行异步的通知
@@ -410,6 +380,10 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
 
     @Override
     public void swapOut(MyCatCallbackInf notify) {
+
+        // 验证当前内存整理标识
+        checkClearFlag();
+
         // 首先执行数据加载
         this.swapOut();
         // 进行通知操作
@@ -417,14 +391,36 @@ public class MapFileBufferImp implements MycatSwapBufer, DirectMemAddressInf, My
 
     }
 
+    /**
+     * 进行内存整理的标识验证
+    * 方法描述
+    * @创建日期 2016年12月27日
+    */
+    private void checkClearFlag() {
+        // 仅当不进行整理时，才能进行操作
+        if (clearFlag) {
+            throw new BufferException("MapFileBufferImp exception,please invoke beginOp");
+        }
+    }
+
     @Override
     public void beginOp() {
-        clearFlag = false;
+        try {
+            // 获取语可
+            accessReq.acquire();
+            // 标识当前不能被内存管理器所移动
+            clearFlag = false;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void commitOp() {
+        // 操作完成，将内存管理器标识为可移动
         clearFlag = true;
+        // 释放语可，允许其他在排除的线程进行调用
+        accessReq.release();
     }
 
     @Override

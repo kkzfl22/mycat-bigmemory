@@ -3,16 +3,22 @@ package io.mycat.bigmem;
 import java.io.IOException;
 
 import io.mycat.bigmem.buffer.MycatBuffer;
-import io.mycat.bigmem.cacheway.unsafedirectmemory.MycatMemoryAlloctor;
+import io.mycat.bigmem.buffer.MycatBufferBase;
+import io.mycat.bigmem.cacheway.alloctor.MycatMemoryAlloctor;
+import io.mycat.bigmem.console.LocatePolicy;
 
 public class TestDirectBufferPool {
 
     public static void main(String[] args) throws IOException {
 
-        MycatMemoryAlloctor poolBuffer = new MycatMemoryAlloctor(128, 2048, (short) 1);
+        MycatBufferBase memorybuffer = MycatBufferBase.getMyCatBuffer(LocatePolicy.Core, 1024);
+
+        MycatMemoryAlloctor poolBuffer = new MycatMemoryAlloctor(memorybuffer, 128, (short) 1);
 
         // 进行内存的申请
-        MycatBuffer buffer = poolBuffer.allocationMemory(1024, System.currentTimeMillis());
+        MycatBufferBase buffer = poolBuffer.allocationMemory(1024, System.currentTimeMillis());
+
+        buffer.beginOp();
 
         // 进行内存数据卦
         fillValue(buffer);
@@ -28,6 +34,7 @@ public class TestDirectBufferPool {
         // 测试内存归还后，是否可继续申请
         MycatBuffer buffer2 = poolBuffer.allocationMemory(1792, System.currentTimeMillis());
 
+        buffer.commitOp();
     }
 
     /**
@@ -37,13 +44,13 @@ public class TestDirectBufferPool {
      * @throws IOException 
     * @创建日期 2016年12月23日
     */
-    public static void fillValue(MycatBuffer buffer) throws IOException {
+    public static void fillValue(MycatBufferBase buffer) throws IOException {
         for (int i = 0; i < buffer.capacity(); i++) {
             buffer.putByte((byte) i);
         }
     }
 
-    public static void printValue(MycatBuffer buffer) {
+    public static void printValue(MycatBufferBase buffer) {
         for (int i = 0; i < buffer.capacity(); i++) {
             System.out.print("curr value:" + buffer.get() + "\t");
             if (i % 4 == 0) {

@@ -1,9 +1,9 @@
-package io.mycat.bigmem.cacheway.unsafedirectmemory;
+package io.mycat.bigmem.cacheway.alloctor;
 
 import java.util.BitSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.mycat.bigmem.buffer.MycatBuffer;
+import io.mycat.bigmem.buffer.MycatBufferBase;
 import io.mycat.bigmem.buffer.MycatMovableBufer;
 
 public class UnsafeDirectBufferPage {
@@ -12,7 +12,7 @@ public class UnsafeDirectBufferPage {
      * 操作的buffer信息
     * @字段说明 buffer
     */
-    private MycatMovableBufer buffer;
+    private MycatBufferBase buffer;
 
     /**
     * 每个chunk的大小
@@ -55,7 +55,7 @@ public class UnsafeDirectBufferPage {
     * @param memorySize
     * @param chunkSize
     */
-    public UnsafeDirectBufferPage(MycatMovableBufer buffer, int chunkSize) {
+    public UnsafeDirectBufferPage(MycatBufferBase buffer, int chunkSize) {
         this.buffer = buffer;
         // 设置chunk的大小
         this.chunkSize = chunkSize;
@@ -98,7 +98,7 @@ public class UnsafeDirectBufferPage {
     * @return
     * @创建日期 2016年12月19日
     */
-    public MycatBuffer alloactionMemory(int needChunkSize, long timeOut) {
+    public MycatBufferBase alloactionMemory(int needChunkSize, long timeOut) {
         // 如果当前的可分配的内在块小于需要内存块，则返回
         if (canUseChunkNum < needChunkSize) {
             return null;
@@ -142,13 +142,17 @@ public class UnsafeDirectBufferPage {
                 int needChunkEnd = startIndex + needChunkSize;
                 memUseSet.set(startIndex, needChunkEnd);
 
+                // 在进行数据写入之前，
+
+                // 标识数据不能被内存所整理
                 buffer.beginOp();
+
                 // 标识开始与结束号
                 buffer.getPosition(startIndex * chunkSize);
                 buffer.limit(needChunkEnd * chunkSize);
 
                 // 进行数据进行匹配分段操作
-                MycatBuffer bufferResult = buffer.slice();
+                MycatBufferBase bufferResult = buffer.slice();
 
                 // 当前可使用的，为之前的结果前去当前的需要的，
                 canUseChunkNum = canUseChunkNum - needChunkSize;
@@ -158,6 +162,7 @@ public class UnsafeDirectBufferPage {
                     timeOutArrays[i] = timeOut;
                 }
 
+                // 提交当前的操作，以允许内存的整理
                 buffer.commitOp();
 
                 return bufferResult;

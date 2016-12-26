@@ -67,67 +67,11 @@ public interface MycatBuffer {
     public void recycleUnuse();
 
     /**
-     * 获取容量信息
-    * 方法描述
-    * @return
-    * @创建日期 2016年12月22日
-    */
-    public int limit();
-
-    /**
-     * 设置容量信息
-     * 方法描述
-     * @return
-     * @创建日期 2016年12月22日
-     */
-    public void limit(int limit);
-
-    /**
-     * 获得当前写入指针的位置
-    * 方法描述
-    * @return
-    * @创建日期 2016年12月22日
-    */
-    public int putPosition();
-
-    /**
-     * 重新定位位置
-     * 方法描述
-     * @return
-     * @创建日期 2016年12月22日
-     */
-    public void putPosition(int putPosition);
-
-    /**
-     * 获得当前读取指针的位置
-     * 方法描述
-     * @return
-     * @创建日期 2016年12月22日
-     */
-    public int getPosition();
-
-    /**
-     * 重新定位读取指针位置
-     * 方法描述
-     * @return
-     * @创建日期 2016年12月22日
-     */
-    public void getPosition(int getPosition);
-
-    /**
-     * 获取容量信息
-    * 方法描述
-    * @return
-    * @创建日期 2016年12月23日
-    */
-    public int capacity();
-
-    /**
      * 以当前的内存生成新的引用对象,使用读取指针定位
     * 方法描述
     * @param buffer
     * @创建日期 2016年12月21日
     */
-    public MycatBuffer slice();
+    public MycatBufferBase slice();
 
 }

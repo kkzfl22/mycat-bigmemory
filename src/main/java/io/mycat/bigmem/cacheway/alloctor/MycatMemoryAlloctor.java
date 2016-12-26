@@ -1,9 +1,10 @@
-package io.mycat.bigmem.cacheway.unsafedirectmemory;
+package io.mycat.bigmem.cacheway.alloctor;
+
+import java.io.IOException;
 
 import io.mycat.bigmem.buffer.DirectMemAddressInf;
-import io.mycat.bigmem.buffer.MycatBuffer;
+import io.mycat.bigmem.buffer.MycatBufferBase;
 import io.mycat.bigmem.buffer.MycatMovableBufer;
-import io.mycat.bigmem.buffer.impl.DirectMycatBufferImpl;
 import io.mycat.bigmem.cacheway.CacheOperatorInf;
 
 /**
@@ -37,14 +38,15 @@ public class MycatMemoryAlloctor implements CacheOperatorInf {
     * @param chunkSize
     * @param memorySize
     * @param poolSize
+     * @throws IOException 
     */
-    public MycatMemoryAlloctor(int chunkSize, int memorySize, short poolSize) {
+    public MycatMemoryAlloctor(MycatBufferBase buffer, int chunkSize, short poolSize) throws IOException {
         CHUNK_SIZE = chunkSize;
         // 进行每个内存页的初始化
         POOL = new UnsafeDirectBufferPage[poolSize];
         // 进行每个chunk的页面的分配内存操作
         for (int i = 0; i < poolSize; i++) {
-            POOL[i] = new UnsafeDirectBufferPage(new DirectMycatBufferImpl(memorySize), CHUNK_SIZE);
+            POOL[i] = new UnsafeDirectBufferPage(buffer, CHUNK_SIZE);
         }
     }
 
@@ -55,7 +57,7 @@ public class MycatMemoryAlloctor implements CacheOperatorInf {
     * @return
     * @创建日期 2016年12月19日
     */
-    public MycatBuffer allocationMemory(int size, long timeOut) {
+    public MycatBufferBase allocationMemory(int size, long timeOut) {
         // 计算需要的chunk大小
         int needChunk = size % CHUNK_SIZE == 0 ? size / CHUNK_SIZE : size / CHUNK_SIZE + 1;
         // 取得内存页信息
@@ -70,7 +72,7 @@ public class MycatMemoryAlloctor implements CacheOperatorInf {
         // 如果能找合适的内存空间，则进行分配
         if (null != page) {
             // 针对当前的chunk进行内存的分配操作
-            MycatBuffer buffer = page.alloactionMemory(needChunk, timeOut);
+            MycatBufferBase buffer = page.alloactionMemory(needChunk, timeOut);
             return buffer;
         }
         return null;
@@ -83,7 +85,7 @@ public class MycatMemoryAlloctor implements CacheOperatorInf {
     * @param buffer
     * @创建日期 2016年12月19日
     */
-    public boolean recycleAll(MycatBuffer buffer) {
+    public boolean recycleAll(MycatBufferBase buffer) {
 
         // 计算chunk归还的数量
         int chunkNum = (int) buffer.capacity() / CHUNK_SIZE;
@@ -117,7 +119,7 @@ public class MycatMemoryAlloctor implements CacheOperatorInf {
     * @param buffer
     * @创建日期 2016年12月19日
     */
-    public boolean recycleNotUse(MycatBuffer buffer) {
+    public boolean recycleNotUse(MycatBufferBase buffer) {
 
         if (buffer.limit() < buffer.capacity()) {
 

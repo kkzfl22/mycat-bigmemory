@@ -1,6 +1,7 @@
 package io.mycat.bigmem.cacheway;
 
 import io.mycat.bigmem.buffer.MycatBuffer;
+import io.mycat.bigmem.buffer.MycatBufferBase;
 
 /**
  * 用来进行缓存操作的接口
@@ -32,7 +33,7 @@ public interface CacheOperatorInf {
     * @return
     * @创建日期 2016年12月20日
     */
-    public boolean recycleAll(MycatBuffer bufer);
+    public boolean recycleAll(MycatBufferBase bufer);
 
     /**
      * 进行缓存空间的部分释放，即释放buffer的limit与capacity之间的空间释放
@@ -41,6 +42,6 @@ public interface CacheOperatorInf {
      * @return
      * @创建日期 2016年12月20日
      */
-    public boolean recycleNotUse(MycatBuffer bufer);
+    public boolean recycleNotUse(MycatBufferBase bufer);
 
 }
