@@ -6,6 +6,7 @@ import io.mycat.bigmem.buffer.DirectMemAddressInf;
 import io.mycat.bigmem.buffer.MycatBufferBase;
 import io.mycat.bigmem.buffer.MycatMovableBufer;
 import io.mycat.bigmem.cacheway.CacheOperatorInf;
+import io.mycat.bigmem.console.LocatePolicy;
 
 /**
  * java 内存池的实现
@@ -24,7 +25,7 @@ public class MycatMemoryAlloctor implements CacheOperatorInf {
     * 内存池对象信息
     * @字段说明 pool
     */
-    private final UnsafeDirectBufferPage[] POOL;
+    private final BufferPage[] POOL;
 
     /**
     * 每个chunk的大小
@@ -40,13 +41,13 @@ public class MycatMemoryAlloctor implements CacheOperatorInf {
     * @param poolSize
      * @throws IOException 
     */
-    public MycatMemoryAlloctor(MycatBufferBase buffer, int chunkSize, short poolSize) throws IOException {
+    public MycatMemoryAlloctor(LocatePolicy policy, int memSize, int chunkSize, short poolSize) throws IOException {
         CHUNK_SIZE = chunkSize;
         // 进行每个内存页的初始化
-        POOL = new UnsafeDirectBufferPage[poolSize];
+        POOL = new BufferPage[poolSize];
         // 进行每个chunk的页面的分配内存操作
         for (int i = 0; i < poolSize; i++) {
-            POOL[i] = new UnsafeDirectBufferPage(buffer, CHUNK_SIZE);
+            POOL[i] = new BufferPage(MycatBufferBase.getMyCatBuffer(policy, memSize), CHUNK_SIZE);
         }
     }
 
@@ -61,8 +62,8 @@ public class MycatMemoryAlloctor implements CacheOperatorInf {
         // 计算需要的chunk大小
         int needChunk = size % CHUNK_SIZE == 0 ? size / CHUNK_SIZE : size / CHUNK_SIZE + 1;
         // 取得内存页信息
-        UnsafeDirectBufferPage page = null;
-        for (UnsafeDirectBufferPage pageMemory : POOL) {
+        BufferPage page = null;
+        for (BufferPage pageMemory : POOL) {
             if (pageMemory.checkNeedChunk(needChunk)) {
                 page = pageMemory;
                 break;
@@ -99,7 +100,7 @@ public class MycatMemoryAlloctor implements CacheOperatorInf {
 
         boolean recyProc = false;
 
-        for (UnsafeDirectBufferPage pageMemory : POOL) {
+        for (BufferPage pageMemory : POOL) {
             if ((recyProc = pageMemory.recycleBuffer((MycatMovableBufer) parentBuf, startChunk, chunkNum)) == true) {
                 break;
             }
@@ -138,7 +139,7 @@ public class MycatMemoryAlloctor implements CacheOperatorInf {
 
             boolean recyProc = false;
 
-            for (UnsafeDirectBufferPage pageMemory : POOL) {
+            for (BufferPage pageMemory : POOL) {
                 if ((recyProc = pageMemory.recycleBuffer((MycatMovableBufer) parentBuf, startChunk,
                         chunkNum)) == true) {
                     break;

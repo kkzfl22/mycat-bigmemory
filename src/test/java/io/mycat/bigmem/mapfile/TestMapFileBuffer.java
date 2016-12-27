@@ -14,11 +14,8 @@ public class TestMapFileBuffer {
     public static void main(String[] args) throws IOException {
 
         try {
-            // 获取文件映射的内存操作
-            MycatBufferBase memorybuffer = MycatBufferBase.getMyCatBuffer(LocatePolicy.Normal, 1024);
-
-            // 管理池对象信息
-            MycatMemoryAlloctor poolBuffer = new MycatMemoryAlloctor(memorybuffer, 128, (short) 1);
+            // 得到一个内存映射区的内存对象
+            MycatMemoryAlloctor poolBuffer = new MycatMemoryAlloctor(LocatePolicy.Normal, 1024, 128, (short) 1);
 
             // 进行内存的申请
             MycatBufferBase mybuffer = poolBuffer.allocationMemory(1024, System.currentTimeMillis());

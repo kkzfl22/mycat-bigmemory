@@ -158,6 +158,9 @@ public class DirectMycatBufferImpl extends MycatBufferBase {
     @Override
     public MycatBuffer putByte(byte b) {
 
+        // 验证当前内存整理标识
+        checkClearFlag();
+
         unsafe.putByte(getIndex(this.addPutPos()), b);
 
         return this;

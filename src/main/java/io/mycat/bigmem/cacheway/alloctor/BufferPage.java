@@ -6,7 +6,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import io.mycat.bigmem.buffer.MycatBufferBase;
 import io.mycat.bigmem.buffer.MycatMovableBufer;
 
-public class UnsafeDirectBufferPage {
+/**
+ * 缓冲内存页的数据
+* 源文件名：BufferPage.java
+* 文件版本：1.0.0
+* 创建作者：liujun
+* 创建日期：2016年12月27日
+* 修改作者：liujun
+* 修改日期：2016年12月27日
+* 文件描述：TODO
+* 版权所有：Copyright 2016 zjhz, Inc. All Rights Reserved.
+*/
+public class BufferPage {
 
     /**
      * 操作的buffer信息
@@ -55,7 +66,7 @@ public class UnsafeDirectBufferPage {
     * @param memorySize
     * @param chunkSize
     */
-    public UnsafeDirectBufferPage(MycatBufferBase buffer, int chunkSize) {
+    public BufferPage(MycatBufferBase buffer, int chunkSize) {
         this.buffer = buffer;
         // 设置chunk的大小
         this.chunkSize = chunkSize;

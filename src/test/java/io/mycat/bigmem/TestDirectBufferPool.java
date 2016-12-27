@@ -11,9 +11,8 @@ public class TestDirectBufferPool {
 
     public static void main(String[] args) throws IOException {
 
-        MycatBufferBase memorybuffer = MycatBufferBase.getMyCatBuffer(LocatePolicy.Core, 1024);
-
-        MycatMemoryAlloctor poolBuffer = new MycatMemoryAlloctor(memorybuffer, 128, (short) 1);
+        // 构建内存池对象
+        MycatMemoryAlloctor poolBuffer = new MycatMemoryAlloctor(LocatePolicy.Core, 1024, 128, (short) 1);
 
         // 进行内存的申请
         MycatBufferBase buffer = poolBuffer.allocationMemory(1024, System.currentTimeMillis());

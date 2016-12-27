@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import io.mycat.bigmem.buffer.MycatBuffer;
 import io.mycat.bigmem.buffer.MycatBufferBase;
-import io.mycat.bigmem.cacheway.alloctor.UnsafeDirectBufferPage;
+import io.mycat.bigmem.cacheway.alloctor.BufferPage;
 import io.mycat.bigmem.console.LocatePolicy;
 
 public class TestDirectBufferPage {
@@ -13,7 +13,7 @@ public class TestDirectBufferPage {
     public static void main(String[] args) throws IOException {
         MycatBufferBase buffer = MycatBufferBase.getMyCatBuffer(LocatePolicy.Core, 2048);
 
-        UnsafeDirectBufferPage page = new UnsafeDirectBufferPage(buffer, 256);
+        BufferPage page = new BufferPage(buffer, 256);
 
         MycatBufferBase buffer1 = page.alloactionMemory(4, System.currentTimeMillis());
 

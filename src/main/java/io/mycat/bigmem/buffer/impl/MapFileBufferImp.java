@@ -10,7 +10,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.Semaphore;
 
-import io.mycat.bigmem.buffer.DirectMemAddressInf;
 import io.mycat.bigmem.buffer.MyCatCallbackInf;
 import io.mycat.bigmem.buffer.MycatBuffer;
 import io.mycat.bigmem.buffer.MycatBufferBase;
@@ -34,7 +33,7 @@ import sun.nio.ch.FileChannelImpl;
 * 版权所有：Copyright 2016 zjhz, Inc. All Rights Reserved.
 */
 @SuppressWarnings("restriction")
-public class MapFileBufferImp extends MycatBufferBase implements MycatSwapBufer, DirectMemAddressInf {
+public class MapFileBufferImp extends MycatBufferBase implements MycatSwapBufer {
 
     /**
      * 内存控制的对象信息 
