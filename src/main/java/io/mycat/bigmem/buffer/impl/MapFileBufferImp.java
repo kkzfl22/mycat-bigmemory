@@ -262,12 +262,6 @@ public class MapFileBufferImp extends MycatBufferBase implements MycatSwapBufer 
         checkClearFlag();
 
         this.limit(this.putPosition);
-
-        try {
-            randomFile.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     @Override
