@@ -45,7 +45,7 @@ public class DirectMycatBufferImpl extends MycatBufferBase {
     /**
      * 构造方法，进行内存容量的分配操作
     * 构造方法
-    * @param memorySize
+    * @param memorySize 初始化的容量信息
     */
     public DirectMycatBufferImpl(int memorySize) {
         // // 获得首地址信息
